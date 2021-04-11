@@ -123,3 +123,9 @@ Debug/
 *.cfg
 
 */*.zip
+
+STM32Cube_FW_L5_V1.4.0/
+codigos-experimentos/fw*
+codigos-experimentos/chave_pu*
+codigos-experimentos/pro*
+codigos-experimentos/te*.py

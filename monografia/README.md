@@ -1,0 +1,3 @@
+### Monografia
+
+Este repositório contém o trabalho de conclusão de curso apresentado à Coodenadoria do Curso de Engenharia de Telecomunicações do campus São José do Instituto Federal de Santa Catarina para a obtenção do diploma de Engenheiro de Telecomunicações. Todas as informações referentes à solução de atualização de *firmware*, à implementação e os experimentos realizados podem ser encontrados no texto.
