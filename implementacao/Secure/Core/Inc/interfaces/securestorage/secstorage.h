@@ -59,9 +59,9 @@ public:
 	};
 
 	SecureStorage();
-	virtual STATUS_t readData(DATA_t address, uint8_t *out, ASSET_t asset);
-	virtual STATUS_t writeData(DATA_t address, DATA_t data);
-	virtual STATUS_t eraseData(DATA_t address);
+	virtual STATUS_t readData(DATA_t address, uint8_t *out, ASSET_t asset) = 0;
+	virtual STATUS_t writeData(DATA_t address, DATA_t data) = 0;
+	virtual STATUS_t eraseData(DATA_t address) = 0;
 
 	/*
 	 * User might need to add specific platform methods

@@ -49,10 +49,10 @@ public:
 	};
 
 	FlashManager();
-	virtual STATUS_t flashWrite(DATA_t address, DATA_t word);
-	virtual STATUS_t flashErase(DATA_t address);
-	virtual STATUS_t flashLock(void);
-	virtual STATUS_t flashUnlock(void);
+	virtual STATUS_t flashWrite(DATA_t address, DATA_t word) = 0;
+	virtual STATUS_t flashErase(DATA_t address) = 0;
+	virtual STATUS_t flashLock(void) = 0;
+	virtual STATUS_t flashUnlock(void) = 0;
 
 	STATUS_t flashReadAll(DATA_t address, uint8_t *out, size_t out_len);
 	bool isFlashLocked();

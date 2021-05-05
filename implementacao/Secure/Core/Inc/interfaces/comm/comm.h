@@ -17,8 +17,8 @@ class Comm {
 
 public:
 	Comm();
-	virtual size_t sendData(uint8_t *buffer_out, size_t buffer_len);
-	virtual size_t getData(uint8_t *buffer_in, size_t * buffer_len);
+	virtual size_t sendData(uint8_t *buffer_out, size_t buffer_len) = 0;
+	virtual size_t getData(uint8_t *buffer_in, size_t * buffer_len) = 0;
 	virtual bool hasData(void);
 
 	/*

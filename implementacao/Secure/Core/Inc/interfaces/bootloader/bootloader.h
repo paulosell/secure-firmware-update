@@ -45,15 +45,15 @@ public:
 
 	Bootloader();
 	/* Should be used during secure boot */
-	virtual STATUS_t checkFirmwareIntegrity(void);
+	virtual STATUS_t checkFirmwareIntegrity(void) = 0;
 
 
 	/* Should be used during secure update */
-	virtual STATUS_t checkNewFirmwareSignature(void);
-	virtual STATUS_t checkNewFirmwareVersion(void);
-	virtual STATUS_t receiveNewFirmware(void);
-	virtual STATUS_t hasToUpdate(void);
-	virtual void launchFirmware(void);
+	virtual STATUS_t checkNewFirmwareSignature(void) = 0;
+	virtual STATUS_t checkNewFirmwareVersion(void) = 0;
+	virtual STATUS_t receiveNewFirmware(void) = 0;
+	virtual STATUS_t hasToUpdate(void) = 0;
+	virtual void launchFirmware(void) = 0;
 
 	STATE_t getState(void);
 	STATUS_t setState(STATE_t state);

@@ -48,10 +48,10 @@ public:
 
 	Cryptography();
 	virtual STATUS_t shaGen(uint8_t *buffer_in, size_t in_len,
-			uint8_t *buffer_out, size_t *out_len, SHA_t sha_type);
+			uint8_t *buffer_out, size_t *out_len, SHA_t sha_type) = 0;
 
 	virtual STATUS_t sigCheck(uint8_t *buffer_expected, uint8_t *buffer_in,
-			size_t buffer_in_len, key_t *pubkey, ALGORITHM_t algo);
+			size_t buffer_in_len, key_t *pubkey, ALGORITHM_t algo) = 0;
 
 	STATUS_t shaCheck(uint8_t *buffer_expected, uint8_t *buffer_digest,
 			SHA_t sha_type);

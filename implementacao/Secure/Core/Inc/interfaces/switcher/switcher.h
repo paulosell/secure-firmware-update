@@ -17,8 +17,8 @@ class Switcher {
 public:
 
 	Switcher();
-	virtual void goToSecure(void);
-	virtual void goToNonSecure(void);
+	virtual void goToSecure(void) = 0;
+	virtual void goToNonSecure(void) = 0;
 };
 
 #endif /* INTERFACES_SWITCHER_SWITCHER_H_ */
