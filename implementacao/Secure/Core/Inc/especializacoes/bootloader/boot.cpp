@@ -164,7 +164,7 @@ Boot::STATUS_t Boot::receiveNewFirmware(void) {
 	BSP_LED_Init(LED9);
 	BSP_LED_On(LED9);
 	this->setState(Boot::STATE_t::UPDATE_PREPARATION);
-	address.word.word_32 = NEW_FIRMWARE_HASH_ADDRESS;
+	address.word.word_32 = NEW_FIRMWARE_SIGNATURE_ADDRESS;
 	f.flashErase(address);
 	address.word.word_32 = NEW_FW_START_ADDRESS;
 	f.flashErase(address, 63);
@@ -186,7 +186,7 @@ Boot::STATUS_t Boot::receiveNewFirmware(void) {
 			}
 			case Boot::COMMAND_t::BOOTLOADER_START: {
 
-				address.word.word_32 = NEW_FIRMWARE_HASH_ADDRESS;
+				address.word.word_32 = NEW_FIRMWARE_SIGNATURE_ADDRESS;
 				f.flashErase(address);
 				address.word.word_32 = NEW_FW_START_ADDRESS;
 				f.flashErase(address, 63);
@@ -408,7 +408,7 @@ Boot::STATUS_t Boot::finishUpdate(void) {
 		return Boot::STATUS_t::FAIL;
 	}
 
-	address.word.word_32 = NEW_FIRMWARE_HASH_ADDRESS;
+	address.word.word_32 = NEW_FIRMWARE_SIGNATURE_ADDRESS;
 	if (f.flashErase(address) != Flash::STATUS_t::SUCCESS) {
 		return Boot::STATUS_t::FAIL;
 	}
