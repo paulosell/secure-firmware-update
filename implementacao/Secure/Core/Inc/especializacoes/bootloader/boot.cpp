@@ -65,35 +65,33 @@ Boot::STATUS_t Boot::hasToUpdate(void) {
 }
 
 Boot::STATUS_t Boot::storeAssets(uint8_t *assets, size_t len) {
-	uint8_t hash[32];
+
 	uint8_t sig[256];
 	uint8_t size[8];
 	uint8_t version[8];
 
-	if (len != 304) {
+	if (len != 272) {
 		return Boot::STATUS_t::FAIL;
 	}
 
 	int i;
-	for (i = 0; i < 32; i++) {
-		hash[i] = assets[i];
+
+	for (i = 0; i < 256; i++) {
+		sig[i] = assets[i];
 	}
 
-	for (i = 32; i < 288; i++) {
-		sig[i - 32] = assets[i];
+	for (i = 256; i < 264; i++) {
+		size[i - 256] = assets[i];
 	}
 
-	for (i = 288; i < 296; i++) {
-		size[i - 288] = assets[i];
-	}
-
-	for (i = 296; i < 304; i++) {
-		version[i - 296] = assets[i];
+	for (i = 264; i < 272; i++) {
+		version[i - 264] = assets[i];
 	}
 
 	Storage s;
 	DATA_t address;
 
+	/*
 	address.word.word_32 = NEW_FIRMWARE_HASH_ADDRESS;
 	for (int i = 0; i < 32; i += 8) {
 		DATA_t word;
@@ -111,7 +109,7 @@ Boot::STATUS_t Boot::storeAssets(uint8_t *assets, size_t len) {
 
 		address.word.word_32 = address.word.word_32 + 8;
 
-	}
+	}*/
 
 	address.word.word_32 = NEW_FIRMWARE_SIGNATURE_ADDRESS;
 
@@ -241,7 +239,7 @@ Boot::STATUS_t Boot::receiveNewFirmware(void) {
 	this->setState(Boot::STATE_t::UPDATE_VALIDATION);
 	if (this->validateNewFirmware() == Boot::STATUS_t::FAIL) {
 		while(true){
-		HAL_Delay(5000);
+		HAL_Delay(1000);
 		BSP_LED_Toggle(LED9);
 		}
 	}
@@ -249,7 +247,7 @@ Boot::STATUS_t Boot::receiveNewFirmware(void) {
 	this->setState(Boot::STATE_t::UPDATE_INSTALLATION);
 	if (this->finishUpdate() == Boot::STATUS_t::FAIL) {
 		while(true){
-			HAL_Delay(5000);
+			HAL_Delay(500);
 			BSP_LED_Toggle(LED9);
 		}
 
@@ -321,10 +319,10 @@ Boot::STATUS_t Boot::finishUpdate(void) {
 	uint8_t assinatura[256];
 	uint8_t version[8];
 
-	if (s.readData(hash, Storage::ASSET_t::NEW_FIRMWARE_HASH)
+	/*if (s.readData(hash, Storage::ASSET_t::NEW_FIRMWARE_HASH)
 			!= Storage::STATUS_t::SUCCESS) {
 		return Boot::STATUS_t::FAIL;
-	}
+	}*/
 
 	if (s.readData(assinatura, Storage::ASSET_t::NEW_FIRMWARE_SIGNATURE)
 			!= Storage::STATUS_t::SUCCESS) {
@@ -335,6 +333,14 @@ Boot::STATUS_t Boot::finishUpdate(void) {
 			!= Storage::STATUS_t::SUCCESS) {
 		return Boot::STATUS_t::FAIL;
 	}
+
+
+	CryptoRSA c;
+	size_t digest_len;
+
+	CryptoRSA::STATUS_t status = CryptoRSA::STATUS_t::FAIL;
+	status = c.shaGen(new_fw, sizeof(new_fw), hash,
+			&digest_len, CryptoRSA::SHA_t::SHA256);
 
 	address.word.word_32 = FIRMWARE_HASH_ADDRESS;
 	f.flashErase(address);
