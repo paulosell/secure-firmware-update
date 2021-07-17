@@ -152,12 +152,20 @@ Boot::STATUS_t Boot::storeAssets(uint8_t *assets, size_t len) {
 }
 
 Boot::STATUS_t Boot::receiveNewFirmware(void) {
+
+	DATA_t address;
+	Flash f;
+	address.word.word_32 = UPDATE_REQUEST_ADDRESS;
+	f.flashErase(address);
+	DATA_t word;
+	word.word.word_64 = 0x0;
+	Storage s;
+	s.writeData(address, word);
+
 	USBCDC usb;
 	BSP_LED_Init(LED9);
 	BSP_LED_On(LED9);
 	this->setState(Boot::STATE_t::UPDATE_PREPARATION);
-	Flash f;
-	DATA_t address;
 	address.word.word_32 = NEW_FIRMWARE_HASH_ADDRESS;
 	f.flashErase(address);
 	address.word.word_32 = NEW_FW_START_ADDRESS;
@@ -232,21 +240,20 @@ Boot::STATUS_t Boot::receiveNewFirmware(void) {
 
 	this->setState(Boot::STATE_t::UPDATE_VALIDATION);
 	if (this->validateNewFirmware() == Boot::STATUS_t::FAIL) {
-		return Boot::STATUS_t::FAIL;
+		while(true){
+		HAL_Delay(5000);
+		BSP_LED_Toggle(LED9);
+		}
 	}
 
 	this->setState(Boot::STATE_t::UPDATE_INSTALLATION);
 	if (this->finishUpdate() == Boot::STATUS_t::FAIL) {
-		return Boot::STATUS_t::FAIL;
+		while(true){
+			HAL_Delay(5000);
+			BSP_LED_Toggle(LED9);
+		}
 
 	}
-
-	address.word.word_32 = UPDATE_REQUEST_ADDRESS;
-	f.flashErase(address);
-	DATA_t word;
-	word.word.word_64 = 0x0;
-	Storage s;
-	s.writeData(address, word);
 
 	BSP_LED_Off(LED9);
 	BSP_LED_DeInit(LED9);
