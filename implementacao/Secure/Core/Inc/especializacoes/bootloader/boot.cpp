@@ -16,24 +16,28 @@ Boot::Boot() {
 	BSP_PB_Init(BUTTON_USER, BUTTON_MODE_GPIO);
 }
 
+
+
 Boot::STATUS_t Boot::forceUpdateFromBootloader() {
-	uint32_t address = ((uint32_t) 0x0803D800);
-	HAL_FLASH_Unlock();
 
-	uint32_t PageError = 0;
-	FLASH_EraseInitTypeDef EraseInitStruct;
 
-	EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
-	EraseInitStruct.Banks = 1;
-	EraseInitStruct.Page = 123;
-	EraseInitStruct.NbPages = 1;
+	Flash f;
+	Storage s;
+	DATA_t word;
+	DATA_t address;
 
-	HAL_FLASHEx_Erase(&EraseInitStruct, &PageError);
-	uint64_t update = 0x0100000000000000;
+	uint8_t current_value[8]; // obtem valor do bank atual (esta no indice 0)
+	s.readData(current_value, Storage::ASSET_t::UPDATE_REQUEST);
+	current_value[7] = 0x01;
 
-	HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address, update);
+	address.word.word_32 = UPDATE_REQUEST_ADDRESS;
 
-	HAL_FLASH_Lock();
+	word.word.word_64 = ((uint64_t) current_value[7] << 56) | ((uint64_t) current_value[6] << 48) | ((uint64_t) current_value[5] << 40) |
+						((uint64_t) current_value[4] << 32) | ((uint64_t) current_value[3] << 24) | ((uint64_t) current_value[2] << 16) |
+						((uint64_t) current_value[1] << 8) | ((uint64_t) current_value[0] << 0);
+
+	s.eraseData(address);
+	s.writeData(address, word);
 
 	return Boot::STATUS_t::SUCCESS;
 
@@ -90,60 +94,91 @@ Boot::STATUS_t Boot::storeAssets(uint8_t *assets, size_t len) {
 
 	Storage s;
 	DATA_t address;
+	uint8_t current_value[8];
+	s.readData(current_value, Storage::ASSET_t::UPDATE_REQUEST);
 
-	/*
-	address.word.word_32 = NEW_FIRMWARE_HASH_ADDRESS;
-	for (int i = 0; i < 32; i += 8) {
-		DATA_t word;
-		word.word.word_64 = ((uint64_t) hash[i + 7] << 56)
-						| ((uint64_t) hash[i + 6] << 48)
-						| ((uint64_t) hash[i + 5] << 40)
-						| ((uint64_t) hash[i + 4] << 32)
-						| ((uint64_t) hash[i + 3] << 24)
-						| ((uint64_t) hash[i + 2] << 16) | ((uint64_t) hash[i + 1] << 8)
-						| ((uint64_t) hash[i] << 0);
 
-		if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
-			return Boot::STATUS_t::FAIL;
-		}
+	if(current_value[0]){
+		// se banco atual é 0x0806 escreve nos endereco do banco 0x0804
+		address.word.word_32 = FIRMWARE_SIGNATURE_ADDRESS;
 
-		address.word.word_32 = address.word.word_32 + 8;
+			for (int i = 0; i < 256; i += 8) {
+				DATA_t word;
+				word.word.word_64 = ((uint64_t) sig[i + 7] << 56)
+								| ((uint64_t) sig[i + 6] << 48) | ((uint64_t) sig[i + 5] << 40)
+								| ((uint64_t) sig[i + 4] << 32) | ((uint64_t) sig[i + 3] << 24)
+								| ((uint64_t) sig[i + 2] << 16) | ((uint64_t) sig[i + 1] << 8)
+								| ((uint64_t) sig[i] << 0);
 
-	}*/
+				if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
+					return Boot::STATUS_t::FAIL;
+				}
 
-	address.word.word_32 = NEW_FIRMWARE_SIGNATURE_ADDRESS;
+				address.word.word_32 = address.word.word_32 + 8;
+			}
 
-	for (int i = 0; i < 256; i += 8) {
-		DATA_t word;
-		word.word.word_64 = ((uint64_t) sig[i + 7] << 56)
-						| ((uint64_t) sig[i + 6] << 48) | ((uint64_t) sig[i + 5] << 40)
-						| ((uint64_t) sig[i + 4] << 32) | ((uint64_t) sig[i + 3] << 24)
-						| ((uint64_t) sig[i + 2] << 16) | ((uint64_t) sig[i + 1] << 8)
-						| ((uint64_t) sig[i] << 0);
+			address.word.word_32 = FIRMWARE_SIZE_ADDRESS;
 
-		if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
-			return Boot::STATUS_t::FAIL;
-		}
+			DATA_t word;
+			word.word.word_64 = ((uint64_t) size[7] << 56) | ((uint64_t) size[6] << 48)
+							| ((uint64_t) size[5] << 40) | ((uint64_t) size[4] << 32);
 
-		address.word.word_32 = address.word.word_32 + 8;
-	}
+			if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
+				return Boot::STATUS_t::FAIL;
+			}
 
-	address.word.word_32 = NEW_FIRMWARE_SIZE_ADDRESS;
+			address.word.word_32 = FIRMWARE_VERSION_ADDRESS;
 
-	DATA_t word;
-	word.word.word_64 = ((uint64_t) size[7] << 56) | ((uint64_t) size[6] << 48)
-					| ((uint64_t) size[5] << 40) | ((uint64_t) size[4] << 32);
+			word.word.word_64 = ((uint64_t) version[7] << 56);
 
-	if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}
+			if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
+				return Boot::STATUS_t::FAIL;
+			}
 
-	address.word.word_32 = NEW_FIRMWARE_VERSION_ADDRESS;
 
-	word.word.word_64 = ((uint64_t) version[7] << 56);
 
-	if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
+
+
+	} else {
+		// se banco atual é 0x0804 escreve nos endereco do banco 0x0806
+		address.word.word_32 = NEW_FIRMWARE_SIGNATURE_ADDRESS;
+
+				for (int i = 0; i < 256; i += 8) {
+					DATA_t word;
+					word.word.word_64 = ((uint64_t) sig[i + 7] << 56)
+									| ((uint64_t) sig[i + 6] << 48) | ((uint64_t) sig[i + 5] << 40)
+									| ((uint64_t) sig[i + 4] << 32) | ((uint64_t) sig[i + 3] << 24)
+									| ((uint64_t) sig[i + 2] << 16) | ((uint64_t) sig[i + 1] << 8)
+									| ((uint64_t) sig[i] << 0);
+
+					if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
+						return Boot::STATUS_t::FAIL;
+					}
+
+					address.word.word_32 = address.word.word_32 + 8;
+				}
+
+				address.word.word_32 = NEW_FIRMWARE_SIZE_ADDRESS;
+
+				DATA_t word;
+				word.word.word_64 = ((uint64_t) size[7] << 56) | ((uint64_t) size[6] << 48)
+								| ((uint64_t) size[5] << 40) | ((uint64_t) size[4] << 32);
+
+				if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
+					return Boot::STATUS_t::FAIL;
+				}
+
+				address.word.word_32 = NEW_FIRMWARE_VERSION_ADDRESS;
+
+				word.word.word_64 = ((uint64_t) version[7] << 56);
+
+				if (s.writeData(address, word) != Storage::STATUS_t::SUCCESS) {
+					return Boot::STATUS_t::FAIL;
+				}
+
+
+
+
 	}
 
 	return Boot::STATUS_t::SUCCESS;
@@ -152,22 +187,31 @@ Boot::STATUS_t Boot::storeAssets(uint8_t *assets, size_t len) {
 Boot::STATUS_t Boot::receiveNewFirmware(void) {
 
 	DATA_t address;
-	Flash f;
-	address.word.word_32 = UPDATE_REQUEST_ADDRESS;
-	f.flashErase(address);
 	DATA_t word;
-	word.word.word_64 = 0x0;
+	Flash f;
 	Storage s;
+
+	this->setState(Boot::STATE_t::UPDATE_PREPARATION);
+	address.word.word_32 = UPDATE_REQUEST_ADDRESS;
+	uint8_t current_value[8]; // obtem valor do bank atual (esta no indice 0)
+	s.readData(current_value, Storage::ASSET_t::UPDATE_REQUEST);
+	current_value[7] = 0x00;
+
+
+	address.word.word_32 = UPDATE_REQUEST_ADDRESS;
+
+	word.word.word_64 = ((uint64_t) current_value[7] << 56) | ((uint64_t) current_value[6] << 48) | ((uint64_t) current_value[5] << 40) |
+						((uint64_t) current_value[4] << 32) | ((uint64_t) current_value[3] << 24) | ((uint64_t) current_value[2] << 16) |
+						((uint64_t) current_value[1] << 8) | ((uint64_t) current_value[0] << 0);
+
+	s.eraseData(address);
 	s.writeData(address, word);
 
 	USBCDC usb;
 	BSP_LED_Init(LED9);
 	BSP_LED_On(LED9);
-	this->setState(Boot::STATE_t::UPDATE_PREPARATION);
-	address.word.word_32 = NEW_FIRMWARE_SIGNATURE_ADDRESS;
-	f.flashErase(address);
-	address.word.word_32 = NEW_FW_START_ADDRESS;
-	f.flashErase(address, 63);
+
+
 	this->setState(Boot::STATE_t::UPDATE_RECEPTION);
 
 	int reception_finished = 0;
@@ -180,16 +224,33 @@ Boot::STATUS_t Boot::receiveNewFirmware(void) {
 			usb.getData(recv, &len);
 
 			switch (recv[0]) {
+
 			case Boot::COMMAND_t::STATE: {
 				reply = (uint8_t) this->getState();
 				break;
 			}
 			case Boot::COMMAND_t::BOOTLOADER_START: {
 
-				address.word.word_32 = NEW_FIRMWARE_SIGNATURE_ADDRESS;
-				f.flashErase(address);
-				address.word.word_32 = NEW_FW_START_ADDRESS;
-				f.flashErase(address, 63);
+				uint8_t update[8];
+				s.readData(update, Storage::ASSET_t::UPDATE_REQUEST);
+
+
+				if (update[0]) {
+					// se banco atual é 0x0806 apaga banco 0x0804
+					address.word.word_32 = FIRMWARE_HASH_ADDRESS;
+					s.eraseData(address);
+					address.word.word_32 = FW_START_ADDRESS;
+					f.flashErase(address, 63);
+
+
+				} else {
+					// se banco atual é 0x0804 apaga banco 0x0806
+					address.word.word_32 = NEW_FIRMWARE_HASH_ADDRESS;
+					s.eraseData(address);
+					address.word.word_32 = NEW_FW_START_ADDRESS;
+					f.flashErase(address, 63);
+				}
+
 
 				uint8_t assets[len];
 				memcpy((void*) assets, (const void*) recv + 5, len);
@@ -277,73 +338,75 @@ Boot::STATUS_t Boot::finishUpdate(void) {
 	Storage s;
 	Flash f;
 	DATA_t address;
-
 	uint8_t new_fw_size[8];
-
-	if (s.readData(new_fw_size, Storage::ASSET_t::NEW_FIRMWARE_SIZE)
-			!= Storage::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}
-
-	uint32_t new_fw_len = (new_fw_size[4] << 24) | (new_fw_size[5] << 16)
-					| (new_fw_size[6] << 8) | new_fw_size[7];
-
-	uint8_t new_fw[new_fw_len];
-
-	address.word.word_32 = NEW_FW_START_ADDRESS;
-	f.flashReadAll(address, new_fw, new_fw_len);
-
-	address.word.word_32 = FW_START_ADDRESS;
-	f.flashErase(address, 63);
-
-	for (int i = 0; i < new_fw_len; i += 8) { // verificar divisibilidade por 8
-		DATA_t word;
-
-		word.word.word_64 = ((uint64_t) new_fw[i + 7] << 56)
-						| ((uint64_t) new_fw[i + 6] << 48)
-						| ((uint64_t) new_fw[i + 5] << 40)
-						| ((uint64_t) new_fw[i + 4] << 32)
-						| ((uint64_t) new_fw[i + 3] << 24)
-						| ((uint64_t) new_fw[i + 2] << 16)
-						| ((uint64_t) new_fw[i + 1] << 8) | ((uint64_t) new_fw[i] << 0);
-
-		if (f.flashWrite(address, word) != Flash::STATUS_t::SUCCESS) {
-			return Boot::STATUS_t::FAIL;
-		}
-
-		address.word.word_32 = address.word.word_32 + 8;
-
-	}
-
-	uint8_t hash[32];
-	uint8_t assinatura[256];
-	uint8_t version[8];
-
-	/*if (s.readData(hash, Storage::ASSET_t::NEW_FIRMWARE_HASH)
-			!= Storage::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}*/
-
-	if (s.readData(assinatura, Storage::ASSET_t::NEW_FIRMWARE_SIGNATURE)
-			!= Storage::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}
-
-	if (s.readData(version, Storage::ASSET_t::NEW_FIRMWARE_VERSION)
-			!= Storage::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}
-
 
 	CryptoRSA c;
 	size_t digest_len;
 
-	CryptoRSA::STATUS_t status = CryptoRSA::STATUS_t::FAIL;
-	status = c.shaGen(new_fw, sizeof(new_fw), hash,
-			&digest_len, CryptoRSA::SHA_t::SHA256);
 
-	address.word.word_32 = FIRMWARE_HASH_ADDRESS;
-	f.flashErase(address);
+	uint8_t hash[32];
+	uint8_t current_value[8];
+	s.readData(current_value, Storage::ASSET_t::UPDATE_REQUEST);
+
+	if (current_value[0]) {
+
+
+		s.readData(new_fw_size, Storage::ASSET_t::FIRMWARE_SIZE);
+		uint32_t fw_len = (new_fw_size[4] << 24) | (new_fw_size[5] << 16)
+							| (new_fw_size[6] << 8) | new_fw_size[7];
+		uint8_t fw[fw_len];
+
+		address.word.word_32 = FW_START_ADDRESS;
+		f.flashReadAll(address, fw, fw_len);
+
+		CryptoRSA::STATUS_t status = CryptoRSA::STATUS_t::FAIL;
+				status = c.shaGen(fw, sizeof(fw), hash,
+						&digest_len, CryptoRSA::SHA_t::SHA256);
+
+
+
+		current_value[0] = 0x0;
+		address.word.word_32 = UPDATE_REQUEST_ADDRESS;
+		DATA_t word;
+		word.word.word_64 = ((uint64_t) current_value[7] << 56) | ((uint64_t) current_value[6] << 48) | ((uint64_t) current_value[5] << 40) |
+							((uint64_t) current_value[4] << 32) | ((uint64_t) current_value[3] << 24) | ((uint64_t) current_value[2] << 16) |
+							((uint64_t) current_value[1] << 8) | ((uint64_t) current_value[0] << 0);
+
+		s.eraseData(address);
+		s.writeData(address, word);
+
+		address.word.word_32 = FIRMWARE_HASH_ADDRESS;
+
+	} else {
+		s.readData(new_fw_size, Storage::ASSET_t::NEW_FIRMWARE_SIZE);
+
+		uint32_t fw_len = (new_fw_size[4] << 24) | (new_fw_size[5] << 16)
+								| (new_fw_size[6] << 8) | new_fw_size[7];
+		uint8_t fw[fw_len];
+
+		address.word.word_32 = NEW_FW_START_ADDRESS;
+		f.flashReadAll(address, fw, fw_len);
+
+		CryptoRSA::STATUS_t status = CryptoRSA::STATUS_t::FAIL;
+				status = c.shaGen(fw, sizeof(fw), hash,
+						&digest_len, CryptoRSA::SHA_t::SHA256);
+
+		s.readData(current_value, Storage::ASSET_t::UPDATE_REQUEST);
+		current_value[0] = 0x1;
+		address.word.word_32 = UPDATE_REQUEST_ADDRESS;
+		DATA_t word;
+		word.word.word_64 = ((uint64_t) current_value[7] << 56) | ((uint64_t) current_value[6] << 48) | ((uint64_t) current_value[5] << 40) |
+							((uint64_t) current_value[4] << 32) | ((uint64_t) current_value[3] << 24) | ((uint64_t) current_value[2] << 16) |
+							((uint64_t) current_value[1] << 8) | ((uint64_t) current_value[0] << 0);
+
+		s.eraseData(address);
+		s.writeData(address, word);
+
+		address.word.word_32 = NEW_FIRMWARE_HASH_ADDRESS;
+
+
+	}
+
 
 	for (int i = 0; i < 32; i += 8) {
 		DATA_t word;
@@ -363,56 +426,6 @@ Boot::STATUS_t Boot::finishUpdate(void) {
 
 	}
 
-	address.word.word_32 = FIRMWARE_SIGNATURE_ADDRESS;
-
-	for (int i = 0; i < 256; i += 8) {
-		DATA_t word;
-		word.word.word_64 = ((uint64_t) assinatura[i + 7] << 56)
-						| ((uint64_t) assinatura[i + 6] << 48)
-						| ((uint64_t) assinatura[i + 5] << 40)
-						| ((uint64_t) assinatura[i + 4] << 32)
-						| ((uint64_t) assinatura[i + 3] << 24)
-						| ((uint64_t) assinatura[i + 2] << 16)
-						| ((uint64_t) assinatura[i + 1] << 8)
-						| ((uint64_t) assinatura[i] << 0);
-
-		if (f.flashWrite(address, word) != Flash::STATUS_t::SUCCESS) {
-			return Boot::STATUS_t::FAIL;
-		}
-
-		address.word.word_32 = address.word.word_32 + 8;
-	}
-
-	address.word.word_32 = FIRMWARE_SIZE_ADDRESS;
-
-	DATA_t word;
-	word.word.word_64 = ((uint64_t) new_fw_size[7] << 56)
-					| ((uint64_t) new_fw_size[6] << 48)
-					| ((uint64_t) new_fw_size[5] << 40)
-					| ((uint64_t) new_fw_size[4] << 32);
-
-	if (f.flashWrite(address, word) != Flash::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}
-
-	address.word.word_32 = FIRMWARE_VERSION_ADDRESS;
-
-	word.word.word_64 = ((uint64_t) version[7] << 56);
-
-	if (f.flashWrite(address, word) != Flash::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}
-
-	address.word.word_32 = NEW_FW_START_ADDRESS;
-	if (f.flashErase(address, 63) != Flash::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}
-
-	address.word.word_32 = NEW_FIRMWARE_SIGNATURE_ADDRESS;
-	if (f.flashErase(address) != Flash::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}
-
 	return Boot::STATUS_t::SUCCESS;
 }
 
@@ -422,19 +435,45 @@ Boot::STATUS_t Boot::checkNewFirmwareVersion(void) {
 
 	Storage s;
 
-	if (s.readData(fw_version, Storage::ASSET_t::FIRMWARE_VERSION)
-			!= Storage::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
+	uint8_t update[8];
+	s.readData(update, Storage::ASSET_t::UPDATE_REQUEST);
+
+	if (update[0]) {
+		// se banco atual é 0x0806, fw_version = NEW_FIRMWARE_VERSION
+		if (s.readData(fw_version, Storage::ASSET_t::NEW_FIRMWARE_VERSION)
+					!= Storage::STATUS_t::SUCCESS) {
+				return Boot::STATUS_t::FAIL;
+			}
+
+			if (s.readData(new_fw_version, Storage::ASSET_t::FIRMWARE_VERSION)
+					!= Storage::STATUS_t::SUCCESS) {
+				return Boot::STATUS_t::FAIL;
+			}
+
+			if (fw_version[7] < new_fw_version[7]) {
+				return Boot::STATUS_t::SUCCESS;
+			}
+
+
+	} else {
+
+		// se banco atual é 0x0804, fw_version = FIRMWARE_VERSION
+		if (s.readData(fw_version, Storage::ASSET_t::FIRMWARE_VERSION)
+					!= Storage::STATUS_t::SUCCESS) {
+				return Boot::STATUS_t::FAIL;
+			}
+
+			if (s.readData(new_fw_version, Storage::ASSET_t::NEW_FIRMWARE_VERSION)
+					!= Storage::STATUS_t::SUCCESS) {
+				return Boot::STATUS_t::FAIL;
+			}
+
+			if (fw_version[7] < new_fw_version[7]) {
+				return Boot::STATUS_t::SUCCESS;
+			}
 	}
 
-	if (s.readData(new_fw_version, Storage::ASSET_t::NEW_FIRMWARE_VERSION)
-			!= Storage::STATUS_t::SUCCESS) {
-		return Boot::STATUS_t::FAIL;
-	}
 
-	if (fw_version[7] < new_fw_version[7]) {
-		return Boot::STATUS_t::SUCCESS;
-	}
 
 	return Boot::STATUS_t::FAIL;
 
@@ -458,8 +497,19 @@ Boot::STATUS_t Boot::checkFirmwareIntegrity(void) {
 	uint8_t buffer_firmware[fw_len];
 
 	DATA_t address;
-	address.word.word_32 = FW_START_ADDRESS;
+	uint8_t update[8];
 
+
+	s.readData(update, Storage::ASSET_t::UPDATE_REQUEST);
+
+
+	if (update[0]){
+		address.word.word_32 = NEW_FW_START_ADDRESS;
+
+	} else {
+		address.word.word_32 = FW_START_ADDRESS;
+
+	}
 	f.flashReadAll(address, buffer_firmware, fw_len);
 
 	uint8_t digest[32];
@@ -473,8 +523,13 @@ Boot::STATUS_t Boot::checkFirmwareIntegrity(void) {
 		uint8_t hash_firmware[32];
 
 		Storage s;
-		s.readData(hash_firmware, Storage::ASSET_t::FIRMWARE_HASH);
+		if (update[0]){
+			s.readData(hash_firmware, Storage::ASSET_t::NEW_FIRMWARE_HASH);
 
+		} else {
+
+			s.readData(hash_firmware, Storage::ASSET_t::FIRMWARE_HASH);
+		}
 		status = c.shaCheck(hash_firmware, digest, CryptoRSA::SHA_t::SHA256);
 		if (status == CryptoRSA::STATUS_t::SUCCESS) {
 			this->setIsReadyToBoot(Boot::STATUS_t::SUCCESS);
@@ -496,12 +551,18 @@ Boot::STATUS_t Boot::checkFirmwareIntegrity(void) {
 Boot::STATUS_t Boot::checkNewFirmwareSignature(void) {
 
 	Boot::STATUS_t result = Boot::STATUS_t::FAIL;
+
 	CryptoRSA c;
 	Flash f;
 	Storage s;
 	uint8_t fw_size[8];
+	uint8_t update[8];
 
-	if (s.readData(fw_size, Storage::ASSET_t::NEW_FIRMWARE_SIZE)
+	s.readData(update, Storage::ASSET_t::UPDATE_REQUEST);
+
+	if(update[0]){
+
+	if (s.readData(fw_size, Storage::ASSET_t::FIRMWARE_SIZE)
 			!= Storage::STATUS_t::SUCCESS) {
 		return result;
 	}
@@ -530,18 +591,18 @@ Boot::STATUS_t Boot::checkNewFirmwareSignature(void) {
 	chave_publica.rsa_key.modulus_len = 256;
 	uint8_t assinatura[256];
 
-	if (s.readData(assinatura, Storage::ASSET_t::NEW_FIRMWARE_SIGNATURE)
+	if (s.readData(assinatura, Storage::ASSET_t::FIRMWARE_SIGNATURE)
 			!= Storage::STATUS_t::SUCCESS) {
 		return result;
 	}
 
 	DATA_t address;
-	address.word.word_32 = NEW_FW_START_ADDRESS;
+	address.word.word_32 = FW_START_ADDRESS;
 	f.flashReadAll(address, buffer_firmware, fw_len);
 
 	uint8_t new_fw_version[8];
 
-	if (s.readData(new_fw_version, Storage::ASSET_t::NEW_FIRMWARE_VERSION)
+	if (s.readData(new_fw_version, Storage::ASSET_t::FIRMWARE_VERSION)
 			!= Storage::STATUS_t::SUCCESS) {
 		return Boot::STATUS_t::FAIL;
 
@@ -557,9 +618,65 @@ Boot::STATUS_t Boot::checkNewFirmwareSignature(void) {
 		result = Boot::STATUS_t::SUCCESS;
 		return result;
 	}
+	} else {
+		if (s.readData(fw_size, Storage::ASSET_t::NEW_FIRMWARE_SIZE)
+					!= Storage::STATUS_t::SUCCESS) {
+				return result;
+			}
 
+			uint32_t fw_len = (fw_size[4] << 24) + (fw_size[5] << 16)
+							+ (fw_size[6] << 8) + fw_size[7];
+			uint8_t buffer_firmware[fw_len + 8];
+			memset((void*) buffer_firmware, '\0', fw_len + 8);
+			uint8_t modulo[256];
+			uint8_t expoente[3];
+
+			if (s.readData(expoente, Storage::ASSET_t::PUBLIC_EXPONENT)
+					!= Storage::STATUS_t::SUCCESS) {
+				return result;
+			}
+
+			if (s.readData(modulo, Storage::ASSET_t::MODULUS)
+					!= Storage::STATUS_t::SUCCESS) {
+				return result;
+			}
+
+			CryptoRSA::key_t chave_publica;
+			chave_publica.rsa_key.exponent = (uint8_t*) expoente;
+			chave_publica.rsa_key.modulus = (uint8_t*) modulo;
+			chave_publica.rsa_key.exponent_len = 3;
+			chave_publica.rsa_key.modulus_len = 256;
+			uint8_t assinatura[256];
+
+			if (s.readData(assinatura, Storage::ASSET_t::NEW_FIRMWARE_SIGNATURE)
+					!= Storage::STATUS_t::SUCCESS) {
+				return result;
+			}
+
+			DATA_t address;
+			address.word.word_32 = NEW_FW_START_ADDRESS;
+			f.flashReadAll(address, buffer_firmware, fw_len);
+
+			uint8_t new_fw_version[8];
+
+			if (s.readData(new_fw_version, Storage::ASSET_t::NEW_FIRMWARE_VERSION)
+					!= Storage::STATUS_t::SUCCESS) {
+				return Boot::STATUS_t::FAIL;
+
+			}
+
+			for (int i = fw_len; i < fw_len + 8; i++) {
+				buffer_firmware[i] = new_fw_version[i - fw_len];
+			}
+
+			if (c.sigCheck(assinatura, buffer_firmware, fw_len + 8, &chave_publica,
+					CryptoRSA::ALGORITHM_t::RSA_PKCS1_V1_5)
+					== CryptoRSA::STATUS_t::SUCCESS) {
+				result = Boot::STATUS_t::SUCCESS;
+				return result;
+			}
+	}
 	return Boot::STATUS_t::FAIL;
-
 }
 
 void Boot::launchFirmware(void) {

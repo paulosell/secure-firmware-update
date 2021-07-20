@@ -28,6 +28,9 @@ Storage::STATUS_t Storage::readData(uint8_t *out, ASSET_t asset) {
 	case Storage::ASSET_t::FIRMWARE_VERSION:
 		memcpy((void*) out, (const void*) FIRMWARE_VERSION_ADDRESS, 8);
 		break;
+	case Storage::ASSET_t::NEW_FIRMWARE_HASH:
+		memcpy((void*) out, (const void*) NEW_FIRMWARE_HASH_ADDRESS, 32);
+		break;
 	case Storage::ASSET_t::NEW_FIRMWARE_SIGNATURE:
 		memcpy((void*) out, (const void*) NEW_FIRMWARE_SIGNATURE_ADDRESS, 256);
 		break;

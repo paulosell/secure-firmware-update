@@ -46,7 +46,7 @@ _Min_Stack_Size = 0x1000 ;	/* required amount of stack */
 MEMORY
 {
   RAM	(xrw)	: ORIGIN = 0x20018000,	LENGTH = 96K     /* Memory is divided. Actual start is 0x20000000 and actual length is 256K */
-  FLASH	(rx)	: ORIGIN = 0x8040000,	LENGTH = 256K    /* Memory is divided. Actual start is 0x8000000 and actual length is 512K */
+  FLASH	(rx)	: ORIGIN = 0x8060000,	LENGTH = 126K    /* Memory is divided. Actual start is 0x8000000 and actual length is 512K */
 }
 
 /* Sections */

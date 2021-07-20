@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "secure_nsc.h"
+#include "string.h"
 
 
 /** @addtogroup STM32L5xx_HAL_Examples
@@ -67,7 +68,14 @@ CMSE_NS_ENTRY void SECURE_RegisterCallback(SECURE_CallbackIDTypeDef CallbackId, 
 }
 
 CMSE_NS_ENTRY void SECURE_firmwareUpdate(void){
+
+
 	uint32_t address = ((uint32_t)0x0803D800);
+
+	uint8_t current_value[8];
+
+	memcpy((void*) current_value, (const void*) address, 8);
+
 	HAL_FLASH_Unlock();
 
 	uint32_t PageError = 0;
@@ -81,7 +89,7 @@ CMSE_NS_ENTRY void SECURE_firmwareUpdate(void){
 
 
 	HAL_FLASHEx_Erase(&EraseInitStruct, &PageError);
-	uint64_t update = 0x0100000000000000;
+	uint64_t update = ((uint64_t) 0x01 << 56) |  ((uint64_t) current_value[0] << 0);
 
 
 	HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, address,update);
